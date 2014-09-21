@@ -31,29 +31,38 @@
 				if (api.options.progress_bar) $(vars.progress_bar).stop().css({left : -$(window).width()});	//  Place progress bar
 			}
 			
-			
 			/* Thumbnail Tray
-			----------------------------*/
-			// Hide tray off screen
-			$(vars.thumb_tray).css({bottom : -$(vars.thumb_tray).height()});
-			
-			// Thumbnail Tray Toggle
-			$(vars.tray_button).toggle(function(){
-				$(vars.thumb_tray).stop().animate({bottom : 0, avoidTransforms : true}, 300 );
+			----------------------------*/			
+			var toggleUp = function() {
+				$(vars.thumb_tray).stop().animate({bottom : '+=0', avoidTransforms : false}, 300 );
 				if ($(vars.tray_arrow).attr('src')) $(vars.tray_arrow).attr("src", vars.image_path + "button-tray-down.png");
 				return false;
-			}, function() {
-				$(vars.thumb_tray).stop().animate({bottom : -$(vars.thumb_tray).height(), avoidTransforms : true}, 300 );
+			};
+			
+			var toggleDown = function() {
+				$(vars.thumb_tray).stop().animate({bottom : '-=' + $(vars.thumb_tray).height(), avoidTransforms : false}, 300 );
 				if ($(vars.tray_arrow).attr('src')) $(vars.tray_arrow).attr("src", vars.image_path + "button-tray-up.png");
 				return false;
-			});
+			};
+			
+			if (!api.options.thumbnails_at_launch) {
+				// Thumbnail Tray Toggle
+				$(vars.tray_button).toggle(toggleUp, toggleDown);
+				// Hide tray off screen
+				$(vars.thumb_tray).css({bottom : -$(vars.thumb_tray).height()});
+			}
+			else {
+				// Thumbnail Tray Toggle
+				$(vars.tray_button).toggle(toggleDown, toggleUp);
+				$(vars.tray_arrow).attr("src", vars.image_path + "button-tray-down.png");
+			}
 			
 			// Make thumb tray proper size
 			$(vars.thumb_list).width($('> li', vars.thumb_list).length * $('> li', vars.thumb_list).outerWidth(true));	//Adjust to true width of thumb markers
 			
 			// Display total slides
 			if ($(vars.slide_total).length){
-				$(vars.slide_total).html(api.options.slides.length);
+				$(vars.slide_total).html(api.options.total_length);
 			}
 			
 			
@@ -66,17 +75,17 @@
 				}
 				
 				// Thumb Intervals
-        		vars.thumb_interval = Math.floor($(vars.thumb_tray).width() / $('> li', vars.thumb_list).outerWidth(true)) * $('> li', vars.thumb_list).outerWidth(true);
+				vars.thumb_interval = Math.floor($(vars.thumb_tray).width() / $('> li', vars.thumb_list).outerWidth(true)) * $('> li', vars.thumb_list).outerWidth(true);
         		vars.thumb_page = 0;
         		
         		// Cycle thumbs forward
         		$(vars.thumb_forward).click(function(){
         			if (vars.thumb_page - vars.thumb_interval <= -$(vars.thumb_list).width()){
         				vars.thumb_page = 0;
-        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'}, theme.loadThumbnails());
         			}else{
         				vars.thumb_page = vars.thumb_page - vars.thumb_interval;
-        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'}, theme.loadThumbnails());
         			}
         		});
         		
@@ -85,13 +94,14 @@
         			if (vars.thumb_page + vars.thumb_interval > 0){
         				vars.thumb_page = Math.floor($(vars.thumb_list).width() / vars.thumb_interval) * -vars.thumb_interval;
         				if ($(vars.thumb_list).width() <= -vars.thumb_page) vars.thumb_page = vars.thumb_page + vars.thumb_interval;
-        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'}, theme.loadThumbnails());
 					}else{
         				vars.thumb_page = vars.thumb_page + vars.thumb_interval;
-        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'}, theme.loadThumbnails());
         			}
         		});
-				
+						
+					this.loadThumbnails();	
 			}
 			
 			
@@ -148,19 +158,18 @@
 					}
 				});
 			}
-			
+
 			
 			/* Window Resize
 			----------------------------*/
 			$(window).resize(function(){
-				
 				// Delay progress bar on resize
 				if (api.options.progress_bar && !vars.in_animation){
 					if (vars.slideshow_interval) clearInterval(vars.slideshow_interval);
 					if (api.options.slides.length - 1 > 0) clearInterval(vars.slideshow_interval);
-					
+				
 					$(vars.progress_bar).stop().css({left : -$(window).width()});
-					
+				
 					if (!vars.progressDelay && api.options.slideshow){
 						// Delay slideshow from resuming so Chrome can refocus images
 						vars.progressDelay = setTimeout(function() {
@@ -172,31 +181,35 @@
 						}, 1000);
 					}
 				}
-				
-				// Thumb Links
-				if (api.options.thumb_links && vars.thumb_tray.length){
-					// Update Thumb Interval & Page
-					vars.thumb_page = 0;	
-					vars.thumb_interval = Math.floor($(vars.thumb_tray).width() / $('> li', vars.thumb_list).outerWidth(true)) * $('> li', vars.thumb_list).outerWidth(true);
-					
-					// Adjust thumbnail markers
-					if ($(vars.thumb_list).width() > $(vars.thumb_tray).width()){
-						$(vars.thumb_back +','+vars.thumb_forward).fadeIn('fast');
-						$(vars.thumb_list).stop().animate({'left':0}, 200);
-					}else{
-						$(vars.thumb_back +','+vars.thumb_forward).fadeOut('fast');
-					}
-					
-				}
+
+				theme.thumbTrayChanged();
 			});	
-			
 								
 	 	},
+		
+		thumbTrayChanged: function() {
+			
+			// Thumb Links
+			if (api.options.thumb_links && vars.thumb_tray.length){
+				// Update Thumb Interval & Page
+				vars.thumb_interval = Math.floor($(vars.thumb_tray).width() / $('> li', vars.thumb_list).outerWidth(true)) * $('> li', vars.thumb_list).outerWidth(true);
+				
+				// Adjust thumbnail markers
+				if ($(vars.thumb_list).width() > $(vars.thumb_tray).width()){
+					$(vars.thumb_back +','+vars.thumb_forward).fadeIn('fast');
+					// $(vars.thumb_list).stop().animate({'left':vars.thumb_page}, 200);
+				}else{
+					$(vars.thumb_back +','+vars.thumb_forward).fadeOut('fast');
+				}
+				
+			}
+		},
 	 	
 	 	
 	 	/* Go To Slide
 		----------------------------*/
 	 	goTo : function(){
+			this.loadThumbnails();
 	 		if (api.options.progress_bar && !vars.is_paused){
 				$(vars.progress_bar).stop().css({left : -$(window).width()});
 				theme.progressBar();
@@ -237,46 +250,134 @@
 			}
 		    
 		    
-		    // Highlight current thumbnail and adjust row position
-		    if (api.options.thumb_links){
-		    
-				$('.current-thumb').removeClass('current-thumb');
-				$('li', vars.thumb_list).eq(vars.current_slide).addClass('current-thumb');
-				
-				// If thumb out of view
-				if ($(vars.thumb_list).width() > $(vars.thumb_tray).width()){
-					// If next slide direction
-					if (direction == 'next'){
-						if (vars.current_slide == 0){
-							vars.thumb_page = 0;
-							$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
-						} else if ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left >= vars.thumb_interval){
-	        				vars.thumb_page = vars.thumb_page - vars.thumb_interval;
-	        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
-						}
-					// If previous slide direction
-					}else if(direction == 'prev'){
-						if (vars.current_slide == api.options.slides.length - 1){
-							vars.thumb_page = Math.floor($(vars.thumb_list).width() / vars.thumb_interval) * -vars.thumb_interval;
-							if ($(vars.thumb_list).width() <= -vars.thumb_page) vars.thumb_page = vars.thumb_page + vars.thumb_interval;
-							$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
-						} else if ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left < 0){
-							if (vars.thumb_page + vars.thumb_interval > 0) return false;
-	        				vars.thumb_page = vars.thumb_page + vars.thumb_interval;
-	        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+	    // Highlight current thumbnail and adjust row position
+	    if (api.options.thumb_links){
+	    
+			$('.current-thumb').removeClass('current-thumb');
+			$('li', vars.thumb_list).eq(vars.current_slide).addClass('current-thumb');
+			
+			// If thumb out of view
+			if ($(vars.thumb_list).width() > $(vars.thumb_tray).width()){
+				// If next slide direction
+				if (direction == 'next'){
+					if (vars.current_slide == 0){
+						vars.thumb_page = 0;
+						$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+					} else if ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left >= vars.thumb_interval){
+								var totalDistance = 0;
+								do {
+									totalDistance += vars.thumb_interval;
+								} while ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left - totalDistance >= vars.thumb_interval);
+        				vars.thumb_page = vars.thumb_page - totalDistance;
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+								
+					}
+				// If previous slide direction
+				}else if(direction == 'prev'){
+					if (vars.current_slide == api.options.slides.length - 1){
+						vars.thumb_page = Math.floor($(vars.thumb_list).width() / vars.thumb_interval) * -vars.thumb_interval;
+						if ($(vars.thumb_list).width() <= -vars.thumb_page) vars.thumb_page = vars.thumb_page + vars.thumb_interval;
+						$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
+					} else if ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left < 0){
+						if (vars.thumb_page + vars.thumb_interval > 0) return false;
+						var totalDistance = 0;
+						do {
+							totalDistance += vars.thumb_interval;
+						} while ($('.current-thumb').offset().left - $(vars.thumb_tray).offset().left + totalDistance < 0);
+        				vars.thumb_page = vars.thumb_page + totalDistance;
+        				$(vars.thumb_list).stop().animate({'left': vars.thumb_page}, {duration:500, easing:'easeOutExpo'});
 						}
 					}
 				}
-				
-				
 			}
-		    
 	 	},
+		
+		loadThumbnails: function() {
+			// Ensure thumbnails are loaded
+			// Find first visible element
+			var $thumbs = $('> li', vars.thumb_list);
+			var $next_thumb;
+			for (i = 0; i < $thumbs.length; ++i) {
+				var item = $thumbs.get(i);
+				if ($(item).offset().left >= -vars.thumb_interval) {
+					$next_thumb = $(item);
+					break;
+				}
+			}
+			
+			if ($next_thumb && $next_thumb.length > 0) {
+				// Remove previous thumbnails
+				var i = 0;
+				$prev_thumb = $($thumbs.get(i));
+
+				do {
+					$prev_thumb.html("");
+					
+					$prev_thumb = $($thumbs.get(i));
+					++i;
+				}
+				while ($prev_thumb.attr('class') !== $next_thumb.attr('class'));
+
+				// Load thumbnails for the next 2 intervals
+				do {										
+					$thumbnail = $next_thumb.find('img');
+					if ($thumbnail.length == 0) {
+						$thumbnail = $('<img>', {
+							'src': api.options.slides[$next_thumb.index()].thumb
+						});
+						$next_thumb.append($thumbnail);
+					}
+				
+					$next_thumb = $next_thumb.next();
+				} while ($next_thumb.length > 0 && $next_thumb.offset().left < (vars.thumb_interval * 2));
+			}
+		},
+		
+		imageAdded : function(index, slide) {
+			// Add <li> for thumbnail
+			li_html = $('.thumb' + (api.options.slides.length + i));
+			if (li_html.length == 0) {
+				li_html = $('<li>', {
+					'class': 'thumb' + (api.options.slides.length + i)
+				});
+				ul_html = $('ul#thumb-list');
+				ul_html.css('width', 150 * (api.options.slides.length + i + 1)); // Needs to be 1-based instead of 0-based
+				ul_html.append(li_html);
+			}
+			else {
+				li_html = li_html[0];
+			}
+
+      // Load images for 2 intervals' length
+			// var current_thumb_width = $('.current-thumb').width();
+// 			if (vars.thumb_page + (index*current_thumb_width) < (vars.thumb_interval*2)) {
+				img_html = li_html.find('img');
+				if (img_html.length == 0) {
+					img_html = $('<img>', {
+						'src': slide.thumb
+					});
+					li_html.append(img_html);
+				}
+			// }
+			
+			// Thumb marker clicked
+			if (api.options.thumb_links){
+				li_html.click(function(){
+			
+					index = $(this).index();
+					targetSlide = index + 1;
+				
+					api.goTo(targetSlide);
+					return false;
+				});
+			}
+		},
 	 	
 	 	
 	 	/* After Slide Transition
 		----------------------------*/
 	 	afterAnimation : function(){
+			this.loadThumbnails();
 	 		if (api.options.progress_bar && !vars.is_paused) theme.progressBar();	//  Start progress bar
 	 	},
 	 	
@@ -286,19 +387,18 @@
 		progressBar : function(){
     		$(vars.progress_bar).stop().css({left : -$(window).width()}).animate({ left:0 }, api.options.slide_interval);
     	}
-	 	
-	 
+
 	 };
 	 
 	 
 	 /* Theme Specific Variables
 	 ----------------------------*/
 	 $.supersized.themeVars = {
-	 	
+
 	 	// Internal Variables
-		progress_delay		:	false,				// Delay after resize before resuming slideshow
-		thumb_page 			: 	false,				// Thumbnail page
-		thumb_interval 		: 	false,				// Thumbnail interval
+		progress_delay	:	false,				// Delay after resize before resuming slideshow
+		thumb_page 			: false,				// Thumbnail page
+		thumb_interval 	: false,				// Thumbnail interval
 		image_path			:	'img/',				// Default image path
 													
 		// General Elements							
@@ -328,9 +428,9 @@
 	 ----------------------------*/												
 	 $.supersized.themeOptions = {					
 	 						   
-		progress_bar		:	1,		// Timer for each slide											
-		mouse_scrub			:	0		// Thumbnails move with mouse
-		
+		progress_bar					:	1,		// Timer for each slide											
+		mouse_scrub						:	0,		// Thumbnails move with mouse
+		thumbnails_at_launch	: 0
 	 };
 	
 	

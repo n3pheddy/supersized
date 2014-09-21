@@ -28,7 +28,7 @@
 						#prevslide:active, #nextslide:active{ margin-top:-19px; }
 						#prevslide:hover, #nextslide:hover{ cursor:pointer; }
 				
-				ul#slide-list{ padding:15px 0; float:left; position:absolute; left:50%; }
+				ul#slide-list{ padding:15px 0; float:left; position:absolute; left:50%; right:54px; }
 					ul#slide-list li{ list-style:none; width:12px; height:12px; float:left; margin:0 5px 0 0; }
 						ul#slide-list li.current-slide a, ul#slide-list li.current-slide a:hover{ background-position:0 0px; }
 						ul#slide-list li a{ display:block; width:12px; height:12px; background:url('../img/nav-dot.png') no-repeat 0 -24px; }
@@ -68,7 +68,8 @@
 		
 		ul#thumb-list{ display:inline-block; list-style:none; position:relative; left:0px; padding:0 0px; }
 			ul#thumb-list li{ background:#111; list-style:none; display:inline; width:150px; height:108px; overflow:hidden; float:left; margin:0; }
-				ul#thumb-list li img { width:200px; height:auto; opacity:0.5; -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=60)"; filter:alpha(opacity=60); -webkit-transition: all 100ms ease-in-out; -moz-transition: all 100ms ease-in-out; -o-transition: all 100ms ease-in-out; -ms-transition: all 100ms ease-in-out; transition: all 100ms ease-in-out; }
+				/* ul#thumb-list li img { width:200px; height:auto; opacity:0.5; -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=60)"; filter:alpha(opacity=60); -webkit-transition: all 100ms ease-in-out; -moz-transition: all 100ms ease-in-out; -o-transition: all 100ms ease-in-out; -ms-transition: all 100ms ease-in-out; transition: all 100ms ease-in-out; } */
+				ul#thumb-list li img { width:200px; height:auto; opacity:0.5; -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=50)"; filter:alpha(opacity=50);-webkit-transform: translate(0px, 0);-webkit-transition: -webkit-transform 100ms ease-in-out;-moz-transform: translate(0px, 0);-moz-transition: -moz-transform 100ms ease-in-out;-o-transform:translate(0px, 0);-o-transition:-o-transform 100ms ease-in-out;transform: translate(0px, 0);transition: transform 100ms ease;}
 				ul#thumb-list li.current-thumb img, ul#thumb-list li:hover img{ opacity:1; -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)"; filter:alpha(opacity=100); }
 				ul#thumb-list li:hover{ cursor:pointer; }
 				

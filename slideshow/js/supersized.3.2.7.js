@@ -76,7 +76,7 @@
 					// Slide Thumbnail Links
 					if (base.options.thumb_links){
 						base.options.slides[thisSlide].thumb ? thumbImage = base.options.slides[thisSlide].thumb : thumbImage = base.options.slides[thisSlide].image;
-						thumbMarkers = thumbMarkers+'<li class="thumb'+thisSlide+' current-thumb"><img src="'+thumbImage+'"/></li>';
+						thumbMarkers = thumbMarkers+'<li class="thumb'+thisSlide+' current-thumb"></li>';
 					};
 				}else{
 					// Slide links
@@ -84,7 +84,7 @@
 					// Slide Thumbnail Links
 					if (base.options.thumb_links){
 						base.options.slides[thisSlide].thumb ? thumbImage = base.options.slides[thisSlide].thumb : thumbImage = base.options.slides[thisSlide].image;
-						thumbMarkers = thumbMarkers+'<li class="thumb'+thisSlide+'"><img src="'+thumbImage+'"/></li>';
+						thumbMarkers = thumbMarkers+'<li class="thumb'+thisSlide+'"></li>';
 					};
 				}
 				thisSlide++;
@@ -196,7 +196,7 @@
 			base.$el.css('visibility','hidden');
 			$('.load-item').hide();
 			
-    	};
+    };
 		
 		
 		/* Launch Supersized
@@ -471,55 +471,14 @@
 				liveslide.removeClass('activeslide').addClass('prevslide');	// Remove active class & update previous slide
 					
 			// Get the slide number of new slide
+			vars.previous_slide = vars.current_slide;
 			vars.current_slide + 1 == base.options.slides.length ? vars.current_slide = 0 : vars.current_slide++;
 			
 		    var nextslide = $(base.el+' li:eq('+vars.current_slide+')'),
-		    	prevslide = base.$el.find('.prevslide');
+		    prevslide = base.$el.find('.prevslide');
 			
 			// If hybrid mode is on drop quality for transition
-			if (base.options.performance == 1) base.$el.removeClass('quality').addClass('speed');	
-			
-			
-			/*-----Load Image-----*/
-			
-			loadSlide = false;
-
-			vars.current_slide == base.options.slides.length - 1 ? loadSlide = 0 : loadSlide = vars.current_slide + 1;	// Determine next slide
-
-			var targetList = base.el+' li:eq('+loadSlide+')';
-			if (!$(targetList).html()){
-				
-				// If links should open in new window
-				var linkTarget = base.options.new_window ? ' target="_blank"' : '';
-				
-				imageLink = (base.options.slides[loadSlide].url) ? "href='" + base.options.slides[loadSlide].url + "'" : "";	// If link exists, build it
-				var img = $('<img src="'+base.options.slides[loadSlide].image+'"/>'); 
-				
-				img.appendTo(targetList).wrap('<a ' + imageLink + linkTarget + '></a>').parent().parent().addClass('image-loading').css('visibility','hidden');
-				
-				img.load(function(){
-					base._origDim($(this));
-					base.resizeNow();
-				});	// End Load
-			};
-						
-			// Update thumbnails (if enabled)
-			if (base.options.thumbnail_navigation == 1){
-			
-				// Load previous thumbnail
-				vars.current_slide - 1 < 0  ? prevThumb = base.options.slides.length - 1 : prevThumb = vars.current_slide - 1;
-				$(vars.prev_thumb).html($("<img/>").attr("src", base.options.slides[prevThumb].image));
-			
-				// Load next thumbnail
-				nextThumb = loadSlide;
-				$(vars.next_thumb).html($("<img/>").attr("src", base.options.slides[nextThumb].image));
-				
-			}
-			
-			
-			
-			/*-----End Load Image-----*/
-			
+			if (base.options.performance == 1) base.$el.removeClass('quality').addClass('speed');			
 			
 			// Call theme function for before slide transition
 			if( typeof theme != 'undefined' && typeof theme.beforeAnimation == "function" ) theme.beforeAnimation('next');
@@ -560,9 +519,8 @@
 					liveslide.animate({ left: base.$el.width(), avoidTransforms : false }, base.options.transition_speed );
 	    			break;
 	    	}
-		    return false;	
+		    return false;
 		};
-		
 		
 		/* Previous Slide
 		----------------------------*/
@@ -578,7 +536,12 @@
 				$('.prevslide').removeClass('prevslide');
 				liveslide.removeClass('activeslide').addClass('prevslide');		// Remove active class & update previous slide
 			
+			// Remove cached image for next slide	
+			var next_slide = vars.current_slide + 1 % base.options.slides.length;
+			base.deleteImage(next_slide);
+			
 			// Get current slide number
+			vars.previous_slide = vars.current_slide;
 			vars.current_slide == 0 ?  vars.current_slide = base.options.slides.length - 1 : vars.current_slide-- ;
 				
 		    var nextslide =  $(base.el+' li:eq('+vars.current_slide+')'),
@@ -669,7 +632,7 @@
 		/* Play/Pause Toggle
 		----------------------------*/
 		base.playToggle = function(){
-		
+			
 			if (vars.in_animation || !api.options.slideshow) return false;		// Abort if currently animating
 			
 			if (vars.is_paused){
@@ -740,7 +703,8 @@
 				// Adjust for new prev slide
 				vars.current_slide = totalSlides-targetSlide+1;
 				vars.update_images = 'prev';
-			    base._placeSlide(vars.update_images);
+				base.writeImage(vars.current_slide);
+			  base._placeSlide(vars.update_images);
 			    
 			}
 			
@@ -842,6 +806,16 @@
 			
 			vars.in_animation = false;
 			
+			if (vars.previous_slide < vars.current_slide) {
+	  		base.deleteImage(vars.previous_slide);
+			}
+			base.flushBuffer();
+			// Pre-load next slides
+			for (i = 1; i <= vars.look_forward; ++i) {
+				var nextSlide = (vars.current_slide + i) % base.options.slides.length;
+				base.writeImage(nextSlide);
+			}
+			
 			// Resume slideshow
 			if (!vars.is_paused && base.options.slideshow){
 				vars.slideshow_interval = setInterval(base.nextSlide, base.options.slide_interval);
@@ -859,8 +833,148 @@
 			return base.options.slides[vars.current_slide][field];
 		};
 		
-        // Make it go!
-        base.init();
+		/* Writes <img> to the DOM
+		----------------------------*/
+		base.writeImage = function(loadSlide) {
+			var targetList = base.el+' li:eq('+loadSlide+')';
+			if (!$(targetList).html()){
+				
+				// If links should open in new window
+				var linkTarget = base.options.new_window ? ' target="_blank"' : '';
+				
+				imageLink = (base.options.slides[loadSlide].url) ? "href='" + base.options.slides[loadSlide].url + "'" : "";	// If link exists, build it
+				var img = $('<img src="'+base.options.slides[loadSlide].image+'"/>'); 
+				
+				img.appendTo(targetList).wrap('<a ' + imageLink + linkTarget + '></a>').parent().parent().addClass('image-loading').css('visibility','hidden');
+				
+				img.load(function(){
+					base._origDim($(this));
+					base.resizeNow();
+				});	// End Load
+			};
+			
+			// Update thumbnails (if enabled)
+			if (base.options.thumbnail_navigation == 1){
+			
+				// Load previous thumbnail
+				vars.current_slide - 1 < 0  ? prevThumb = base.options.slides.length - 1 : prevThumb = vars.current_slide - 1;
+				$(vars.prev_thumb).html($("<img/>").attr("src", base.options.slides[prevThumb].image));
+			
+				// Load next thumbnail
+				nextThumb = loadSlide;
+				$(vars.next_thumb).html($("<img/>").attr("src", base.options.slides[nextThumb].image));
+				
+			}
+		};
+		
+		/* Removes <img> from DOM. Browser may take this opportunity to clear its cache.
+		----------------------------*/
+		base.deleteImage = function(deleteSlide) {
+			if (deleteSlide < 0) {
+				return;
+			}
+			
+			var targetList = base.el+' li:eq('+deleteSlide+')';
+			$(targetList).css('visibility', 'hidden');
+			if ($(targetList).html()){
+				$(targetList).html("");
+			}
+		}
+		
+		/* Adds an image to buffer. When buffer is flushed, the image will be appended at the end of the slides.
+		----------------------------*/
+		base.addImage = function(slide) {
+			vars.buffer.push(slide);
+		};
+		
+		/* Adds images to the current list. This is called when animation has ended so that animations will not appear choppy.
+		----------------------------*/
+		base.flushBuffer = function() {
+			if (vars.buffer.length == 0) return;
+			
+			for (i = 0; i < vars.buffer.length; ++i) {
+				var slide = vars.buffer[i];
+
+				// Add <li> for image			
+				var li_html = $('li.slide-' + (base.options.slides.length + i));
+			
+				if (li_html.length == 0) {
+					li_html = $('<li>' ,{
+						'class': 'slide-' + (base.options.slides.length + i)
+					});
+					var ul_html = $('ul#supersized');
+					ul_html.append(li_html);
+				}
+				else {
+					li_html = li_html[0];
+				}
+			
+				// Add <li> for navigation
+				if (base.options.slide_links) {
+					switch(base.options.slide_links){
+						case 'num':
+							markerContent = thisSlide;
+							break;
+						case 'name':
+							markerContent = base.options.slides[thisSlide].title;
+							break;
+						case 'blank':
+							markerContent = '';
+							break;
+					}
+			
+					li_html = $('li.slide-link-' + (base.options.slides.length + i));
+					if (li_html.length == 0) {
+						li_html = $('<li>', {
+							'class': 'slide-link-' + (base.options.slides.length + i)
+						});
+						ul_html = $('ul#slide-list');
+						ul_html.append(li_html);
+					}
+					else {
+						li_html = li_html[0];
+					}
+			
+					a_html = li_html.find('a');
+					if (a_html.length == 0) {
+						a_html = $('<a>', {
+							'text': markerContent
+						});
+						li_html.append(a_html);
+					}
+			
+					if (base.options.slide_links){
+						// Slide marker clicked
+						li_html.click(function(){
+	
+							index = $(this).index();
+							targetSlide = index + 1;
+		
+							base.goTo(targetSlide);
+							return false;
+		
+						});
+					}
+				}
+				
+				// Call theme function for image dynamically added
+				if( typeof theme != 'undefined' && typeof theme.imageAdded == "function" ) theme.imageAdded((base.options.slides.length + i), slide);
+				
+				if (vars.current_slide + vars.look_forward < base.options.slides.length) {
+					// Load this slide as it's not loaded
+					base.options.slides.push(vars.buffer.shift());
+					base.writeImage(vars.current_slide + 1);
+					--i;
+				}
+			}
+
+			if( typeof theme != 'undefined' && typeof theme.thumbTrayChanged == "function" ) theme.thumbTrayChanged();
+  		base.options.slides = base.options.slides.concat(vars.buffer);
+			vars.buffer = [];
+		}
+		
+    // Make it go!
+    base.init();
 	};
 	
 	
@@ -871,17 +985,19 @@
 		// Elements							
 		thumb_tray			:	'#thumb-tray',	// Thumbnail tray
 		thumb_list			:	'#thumb-list',	// Thumbnail list
-		slide_list          :   '#slide-list',	// Slide link list
+		slide_list      :   '#slide-list',	// Slide link list
 		
 		// Internal variables
-		current_slide			:	0,			// Current slide number
-		in_animation 			:	false,		// Prevents animations from stacking
-		is_paused 				: 	false,		// Tracks paused on/off
-		hover_pause				:	false,		// If slideshow is paused from hover
-		slideshow_interval		:	false,		// Stores slideshow timer					
+		previous_slide    	: -1,
+		current_slide				:	0,			// Current slide number
+		in_animation 				:	false,		// Prevents animations from stacking
+		is_paused 					: 	false,		// Tracks paused on/off
+		hover_pause					:	false,		// If slideshow is paused from hover
+		slideshow_interval	:	false,		// Stores slideshow timer					
 		update_images 			: 	false,		// Trigger to update images after slide jump
-		options					:	{}			// Stores assembled options list
-		
+		options							:	{},			// Stores assembled options list	
+		buffer							: [],			// Stores preloaded images
+		look_forward				: 2
 	};
 	
 	
@@ -890,42 +1006,42 @@
 	$.supersized.defaultOptions = {
     
     	// Functionality
-		slideshow               :   1,			// Slideshow on/off
-		autoplay				:	1,			// Slideshow starts playing automatically
-		start_slide             :   1,			// Start slide (0 is random)
-		stop_loop				:	0,			// Stops slideshow on last slide
-		random					: 	0,			// Randomize slide order (Ignores start slide)
-		slide_interval          :   5000,		// Length between transitions
-		transition              :   1, 			// 0-None, 1-Fade, 2-Slide Top, 3-Slide Right, 4-Slide Bottom, 5-Slide Left, 6-Carousel Right, 7-Carousel Left
-		transition_speed		:	750,		// Speed of transition
+		slideshow      	 	: 1,			// Slideshow on/off
+		autoplay					:	1,			// Slideshow starts playing automatically
+		start_slide    		: 1,			// Start slide (0 is random)
+		stop_loop					:	0,			// Stops slideshow on last slide
+		random						: 0,			// Randomize slide order (Ignores start slide)
+		slide_interval  	: 5000,		// Length between transitions
+		transition      	: 1, 			// 0-None, 1-Fade, 2-Slide Top, 3-Slide Right, 4-Slide Bottom, 5-Slide Left, 6-Carousel Right, 7-Carousel Left
+		transition_speed	:	750,		// Speed of transition
 		new_window				:	1,			// Image links open in new window/tab
-		pause_hover             :   0,			// Pause slideshow on hover
-		keyboard_nav            :   1,			// Keyboard navigation on/off
+		pause_hover       : 0,			// Pause slideshow on hover
+		keyboard_nav      : 1,			// Keyboard navigation on/off
 		performance				:	1,			// 0-Normal, 1-Hybrid speed/quality, 2-Optimizes image quality, 3-Optimizes transition speed //  (Only works for Firefox/IE, not Webkit)
 		image_protect			:	1,			// Disables image dragging and right click with Javascript
 												   
 		// Size & Position
 		fit_always				:	0,			// Image will never exceed browser width or height (Ignores min. dimensions)
-		fit_landscape			:   0,			// Landscape images will not exceed browser width
-		fit_portrait         	:   1,			// Portrait images will not exceed browser height  			   
-		min_width		        :   0,			// Min width allowed (in pixels)
-		min_height		        :   0,			// Min height allowed (in pixels)
-		horizontal_center       :   1,			// Horizontally center background
-		vertical_center         :   1,			// Vertically center background
-		
+		fit_landscape			: 0,			// Landscape images will not exceed browser width
+		fit_portrait      : 1,			// Portrait images will not exceed browser height  			   
+		min_width		      : 0,			// Min width allowed (in pixels)
+		min_height		    : 0,			// Min height allowed (in pixels)
+		horizontal_center : 1,			// Horizontally center background
+		vertical_center   : 1,			// Vertically center background
+		total_length			: 0,
 												   
 		// Components							
-		slide_links				:	1,			// Individual links for each slide (Options: false, 'num', 'name', 'blank')
-		thumb_links				:	1,			// Individual thumb links for each slide
-		thumbnail_navigation    :   0			// Thumbnail navigation
+		slide_links						:	1,		// Individual links for each slide (Options: false, 'num', 'name', 'blank')
+		thumb_links						:	1,		// Individual thumb links for each slide
+		thumbnail_navigation	: 0			// Thumbnail navigation
     	
-    };
+  };
     
-    $.fn.supersized = function(options){
-        return this.each(function(){
-            (new $.supersized(options));
-        });
-    };
+  $.fn.supersized = function(options){
+      return this.each(function(){
+          (new $.supersized(options));
+      });
+  };
 		
 })(jQuery);
 
